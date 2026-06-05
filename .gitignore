@@ -1,26 +1,188 @@
-# Environment
+# ============================================
+# SECURITY - NEVER UPLOAD THESE!
+# ============================================
+
+# Environment Variables (CRITICAL!)
 .env
 .env.local
 .env.*.local
+.env.production
+.env.development
+*.env
 
-# Python
+# Secrets & Keys (CRITICAL!)
+*.key
+*.pem
+*.pub
+secrets/
+private_keys/
+credentials.json
+api_keys.json
+
+# API Keys & Tokens (CRITICAL!)
+.api_key
+.token
+.tokens
+.ssh/
+.aws/
+.azure/
+.gcloud/
+
+# ============================================
+# PYTHON & VENV
+# ============================================
+
+# Virtual Environments
+venv/
+env/
+ENV/
+.venv
+.env_backup
+
+# Python Cache
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-env/
-venv/
+
+# Distribution
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
 *.egg-info/
+.installed.cfg
+*.egg
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# ============================================
+# IDE & EDITOR
+# ============================================
+
+# VS Code
+.vscode/
+*.code-workspace
+.vscode-server/
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+.swp
+.swo
+*~
+.vim/
+
+# General
+.DS_Store
+Thumbs.db
+.project
+.pydevproject
+
+# ============================================
+# OS & SYSTEM
+# ============================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+.directory
+*~
+
+# ============================================
+# LOGS & TEMP FILES
+# ============================================
+
+*.log
+logs/
+*.tmp
+*.temp
+*.bak
+*.backup
+*.swp
+tmp/
+temp/
+
+# ============================================
+# DATABASE & DATA
+# ============================================
+
+*.db
+*.sqlite
+*.sqlite3
+*.pkl
+*.pickle
+data/
+datasets/
+*.csv
+*.xlsx
+
+# ============================================
+# BUILD & DEPLOYMENT
+# ============================================
+
+.next/
+out/
+node_modules/
 dist/
 build/
 
-# IDE
-.vscode/
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# ============================================
+# MISC
+# ============================================
+
+.cache/
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Package manager lock files (optional)
+# Uncomment if you want to commit these:
+# poetry.lock
+# Pipfile.lock
+
+# IDE Generated
 .idea/
+.vscode/
 *.swp
 *.swo
 
-# OS
+# OS Generated
 .DS_Store
 Thumbs.db

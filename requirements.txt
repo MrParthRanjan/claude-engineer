@@ -1,4 +1,39 @@
-# Add your dependencies here
-# Example:
-# anthropic==0.25.0
-# python-dotenv==1.0.0
+# ============================================
+# PYTHON DEPENDENCIES WITH VERSIONS
+# ============================================
+# 
+# Why versions?
+# - Security: Known vulnerabilities patched
+# - Stability: No breaking changes
+# - Reproducibility: Same setup everywhere
+#
+# Update: pip install --upgrade package_name
+#
+# ============================================
+
+# Core Python Packages
+python-dotenv==1.0.0          # Load .env files
+requests==2.31.0              # HTTP library
+
+# API & AI
+anthropic==0.25.0             # Anthropic Claude API
+tavily-python==0.3.0          # Tavily Search API
+
+# Data Processing
+pandas==2.1.0                 # Data manipulation
+numpy==1.24.0                 # Numerical computing
+
+# Utilities
+rich==13.7.0                  # Beautiful terminal output
+colorama==0.4.6               # Colored terminal text
+pydantic==2.4.0               # Data validation
+
+# Development (Optional)
+pytest==7.4.0                 # Testing framework
+black==23.11.0                # Code formatter
+pylint==3.0.0                 # Code linter
+flake8==6.1.0                 # Style checker
+
+# Logging & Monitoring
+loguru==0.7.2                 # Better logging
+

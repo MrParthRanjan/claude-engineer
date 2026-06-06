@@ -1,0 +1,1 @@
+"""SCMP Daily Reader package."""

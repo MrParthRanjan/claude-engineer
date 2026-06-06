@@ -97,7 +97,9 @@ def _parse_feed(xml_text: str, category: str) -> List[Article]:
 
         for entry in items[: CONFIG.articles_per_category]:
             def g(tag: str) -> str:
-                el = entry.find(tag) or entry.find(f"atom:{tag}", ns)
+                el = entry.find(tag)
+                if el is None:
+                    el = entry.find(f"atom:{tag}", ns)
                 return (el.text or "").strip() if el is not None else ""
 
             title = g("title")

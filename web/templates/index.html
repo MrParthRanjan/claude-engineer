@@ -1,102 +1,122 @@
 <!DOCTYPE html>
-<html lang="en" x-data="scmpApp()" :class="{ 'dark': dark }" x-cloak>
+<html lang="en" x-data x-cloak>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SCMP Daily Intelligence</title>
+
+  <!-- Instant dark mode — prevents flash before Alpine loads -->
+  <script>
+    if (localStorage.getItem('scmp_dark') === 'true')
+      document.documentElement.classList.add('dark');
+  </script>
+
   <link rel="stylesheet" href="/static/style.css" />
 
-  <!-- Tailwind CSS Play CDN -->
   <script>
     tailwind.config = {
       darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            brand: { DEFAULT: '#cc0000', dark: '#ef4444' }
-          }
-        }
-      }
+      theme: { extend: {} }
     }
   </script>
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Alpine.js -->
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 
-<body class="bg-gray-50 dark:bg-[#0a0a0f] min-h-screen">
+<body
+  class="bg-gray-50 dark:bg-[#080810] min-h-screen"
+  x-data="scmpApp()"
+>
 
-  <!-- ══════════════════════════════════════════
+  <!-- ═══════════════════════════════════════════════
+       TOAST NOTIFICATION
+  ═══════════════════════════════════════════════ -->
+  <div
+    x-show="showToast"
+    x-transition:enter="transition ease-out duration-300"
+    x-transition:enter-start="opacity-0 translate-y-4 scale-95"
+    x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+    x-transition:leave="transition ease-in duration-200"
+    x-transition:leave-start="opacity-100"
+    x-transition:leave-end="opacity-0 translate-y-2"
+    class="toast fixed bottom-6 right-6 z-50 flex items-center gap-2
+           bg-gray-900 dark:bg-white text-white dark:text-gray-900
+           px-4 py-3 rounded-xl shadow-2xl text-sm font-medium"
+    x-text="toastMsg"
+  ></div>
+
+  <!-- ═══════════════════════════════════════════════
        HEADER
-  ══════════════════════════════════════════ -->
-  <header class="bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50 shadow-sm">
+  ═══════════════════════════════════════════════ -->
+  <header class="bg-white/90 dark:bg-[#0c0c18]/90 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 sticky top-0 z-40">
     <div class="max-w-7xl mx-auto px-4 py-3">
       <div class="flex items-center justify-between gap-4">
 
-        <!-- Branding -->
-        <div class="min-w-0">
-          <h1 class="font-headline text-xl sm:text-2xl lg:text-3xl font-black tracking-wide text-gray-900 dark:text-white leading-tight">
+        <!-- Brand -->
+        <div>
+          <h1 class="font-headline gradient-text text-xl sm:text-2xl lg:text-3xl font-black tracking-wide leading-tight select-none">
             SOUTH CHINA MORNING POST
           </h1>
-          <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5 hidden sm:block">
-            Daily Intelligence Dashboard &mdash;
-            <span x-text="today"></span>
-          </p>
+          <div class="flex items-center gap-2 mt-0.5">
+            <!-- Live dot -->
+            <span class="live-dot shrink-0"></span>
+            <p class="text-xs text-gray-400 dark:text-gray-500">
+              Daily Intelligence &nbsp;·&nbsp;
+              <span x-text="today"></span>
+            </p>
+          </div>
         </div>
 
         <!-- Controls -->
         <div class="flex items-center gap-2 shrink-0">
-
-          <!-- Last updated -->
-          <span x-show="lastUpdated" class="text-xs text-gray-400 dark:text-gray-500 hidden md:inline">
+          <span x-show="lastUpdated" class="text-xs text-gray-400 dark:text-gray-600 hidden lg:inline">
             Updated <span x-text="lastUpdated"></span>
           </span>
 
-          <!-- Refresh button -->
+          <!-- Refresh -->
           <button
             @click="refreshArticles()"
             :disabled="loading || refreshing"
-            class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md
-                   border border-gray-300 dark:border-gray-700
-                   text-gray-700 dark:text-gray-300
+            class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg
+                   border border-gray-200 dark:border-gray-700
+                   text-gray-600 dark:text-gray-400
                    hover:bg-gray-100 dark:hover:bg-gray-800
-                   disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            title="Fetch latest articles"
+                   disabled:opacity-40 disabled:cursor-not-allowed
+                   transition-all duration-150 active:scale-95"
           >
-            <span x-show="!refreshing">↻</span>
-            <span x-show="refreshing" class="spinner text-gray-500"></span>
-            <span class="hidden sm:inline" x-text="refreshing ? 'Refreshing…' : 'Refresh'"></span>
+            <span x-show="!refreshing" class="text-base leading-none">↻</span>
+            <span x-show="refreshing" class="spinner text-gray-400" style="width:14px;height:14px"></span>
+            <span class="hidden sm:inline" x-text="refreshing ? 'Updating…' : 'Refresh'"></span>
           </button>
 
-          <!-- Dark / Light toggle -->
+          <!-- Dark/Light -->
           <button
             @click="toggleDark()"
-            class="w-9 h-9 flex items-center justify-center rounded-md
-                   border border-gray-300 dark:border-gray-700
-                   text-gray-600 dark:text-gray-300
-                   hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            :title="dark ? 'Switch to light mode' : 'Switch to dark mode'"
+            class="w-9 h-9 flex items-center justify-center rounded-lg
+                   border border-gray-200 dark:border-gray-700
+                   hover:bg-gray-100 dark:hover:bg-gray-800
+                   transition-all duration-150 active:scale-95 text-lg"
+            :title="dark ? 'Light mode' : 'Dark mode'"
           >
-            <span x-show="!dark" class="text-base">☀️</span>
-            <span x-show="dark"  class="text-base">🌙</span>
+            <span x-show="!dark">☀️</span>
+            <span x-show="dark">🌙</span>
           </button>
         </div>
       </div>
     </div>
 
     <!-- Category Nav -->
-    <nav class="border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-950">
+    <nav class="border-t border-gray-100 dark:border-gray-800/60">
       <div class="max-w-7xl mx-auto px-4">
-        <div class="category-bar flex gap-1 py-2 overflow-x-auto">
+        <div class="category-bar flex gap-0 overflow-x-auto">
           <template x-for="cat in categories" :key="cat">
             <button
               @click="activeCategory = cat"
               :class="activeCategory === cat
-                ? 'bg-red-600 text-white'
-                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800'"
-              class="px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors"
-              x-text="cat"
+                ? 'text-red-600 dark:text-red-400 border-b-2 border-red-600 dark:border-red-400 bg-red-50/50 dark:bg-red-900/10'
+                : 'text-gray-500 dark:text-gray-500 border-b-2 border-transparent hover:text-gray-900 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50'"
+              class="px-4 py-2.5 text-xs font-semibold whitespace-nowrap uppercase tracking-wide transition-all duration-200"
+              x-text="cat === 'All' ? '⬛ All' : cat"
             ></button>
           </template>
         </div>
@@ -104,37 +124,54 @@
     </nav>
   </header>
 
-  <!-- ══════════════════════════════════════════
-       LOADING SKELETON
-  ══════════════════════════════════════════ -->
-  <main class="max-w-7xl mx-auto px-4 py-6">
+  <!-- ═══════════════════════════════════════════════
+       STATS BAR
+  ═══════════════════════════════════════════════ -->
+  <div x-show="!loading && filteredArticles.length > 0"
+       class="max-w-7xl mx-auto px-4 pt-4 pb-1">
+    <p class="text-xs text-gray-400 dark:text-gray-600">
+      Showing <span class="font-semibold text-gray-600 dark:text-gray-400" x-text="filteredArticles.length"></span> articles
+      <span x-show="activeCategory !== 'All'"> in <span class="font-semibold" x-text="activeCategory"></span></span>
+      <span x-show="activeCategory === 'All'"> across <span class="font-semibold" x-text="Object.keys(articles).length"></span> categories</span>
+    </p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       MAIN CONTENT
+  ═══════════════════════════════════════════════ -->
+  <main class="max-w-7xl mx-auto px-4 py-4">
+
+    <!-- Skeleton -->
     <div x-show="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
       <template x-for="i in 9" :key="i">
-        <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-3">
-          <div class="skeleton h-4 w-20 rounded"></div>
+        <div class="bg-white dark:bg-gray-900/80 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 space-y-3">
+          <div class="flex gap-2">
+            <div class="skeleton h-5 w-20 rounded-full"></div>
+            <div class="skeleton h-5 w-16 rounded-full ml-auto"></div>
+          </div>
           <div class="skeleton h-5 w-full rounded"></div>
-          <div class="skeleton h-5 w-4/5 rounded"></div>
-          <div class="skeleton h-4 w-full rounded"></div>
-          <div class="skeleton h-4 w-3/4 rounded"></div>
-          <div class="flex gap-2 mt-4">
-            <div class="skeleton h-8 w-28 rounded-md"></div>
-            <div class="skeleton h-8 w-32 rounded-md"></div>
+          <div class="skeleton h-5 w-11/12 rounded"></div>
+          <div class="skeleton h-4 w-full rounded mt-1"></div>
+          <div class="skeleton h-4 w-4/5 rounded"></div>
+          <div class="skeleton h-9 w-full rounded-lg mt-2"></div>
+          <div class="flex gap-2">
+            <div class="skeleton h-8 flex-1 rounded-lg"></div>
+            <div class="skeleton h-8 flex-1 rounded-lg"></div>
           </div>
         </div>
       </template>
     </div>
 
-    <!-- ══════════════════════════════════════════
-         ARTICLES GRID
-    ══════════════════════════════════════════ -->
+    <!-- Articles Grid -->
     <div x-show="!loading && filteredArticles.length > 0"
          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+
       <template x-for="(article, idx) in filteredArticles" :key="article.title + idx">
         <article
-          class="article-card bg-white dark:bg-gray-900 rounded-xl
+          class="article-card card-enter bg-white dark:bg-gray-900/80 rounded-2xl
                  border border-gray-200 dark:border-gray-800
-                 shadow-sm hover:shadow-md transition-shadow
-                 flex flex-col"
+                 shadow-sm flex flex-col overflow-hidden"
+          :style="`animation-delay: ${Math.min(idx, 8) * 70}ms`"
           x-data="{
             showAnalysis: false,
             analysis: null,
@@ -152,133 +189,142 @@
                 const r = await fetch('/api/analysis?' + p);
                 this.analysis = await r.json();
               } catch(e) {
-                this.analysis = { error: 'Analysis failed. Check your API key.' };
+                this.analysis = { error: 'Analysis failed. Check ANTHROPIC_API_KEY.' };
               }
               this.loadingAnalysis = false;
             }
           }"
         >
+          <!-- Card top colour stripe -->
+          <div class="h-0.5 w-full" :class="categoryStripe(article.category)"></div>
+
           <!-- Card body -->
           <div class="p-5 flex flex-col flex-1">
 
-            <!-- Category badge + date row -->
-            <div class="flex items-center justify-between mb-3 gap-2">
-              <span
-                class="px-2 py-0.5 rounded-full text-xs font-semibold"
-                :class="categoryBadge(article.category)"
-                x-text="article.category"
-              ></span>
-              <span class="text-xs text-gray-400 dark:text-gray-500 shrink-0"
-                    x-text="article.published ? article.published.split(',')[0] : ''">
-              </span>
+            <!-- Category badge + date -->
+            <div class="flex items-center justify-between mb-3">
+              <span class="px-2.5 py-0.5 rounded-full text-xs font-bold tracking-wide"
+                    :class="categoryBadge(article.category)"
+                    x-text="article.category"></span>
+              <span class="text-xs text-gray-400 dark:text-gray-600"
+                    x-text="formatDate(article.published)"></span>
             </div>
 
             <!-- Headline -->
-            <h2 class="font-headline text-gray-900 dark:text-gray-100 font-bold text-base leading-snug mb-2 flex-1"
-                x-text="article.title">
-            </h2>
+            <h2 class="font-headline text-gray-900 dark:text-gray-100 font-bold text-[15px] leading-snug mb-3"
+                x-text="article.title"></h2>
 
-            <!-- Summary / Description -->
-            <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed mb-4"
-               x-text="(article.ai_summary || article.description || '').substring(0, 220) + ((article.ai_summary || article.description || '').length > 220 ? '…' : '')">
-            </p>
+            <!-- AI Summary -->
+            <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed"
+               x-text="trimText(article.ai_summary || article.description, 210)"></p>
+
+            <!-- ⚡ Crux strip -->
+            <div x-show="article.crux" class="crux-strip">
+              <span class="crux-icon">⚡</span>
+              <span class="crux-text" x-text="article.crux"></span>
+            </div>
+
+            <!-- Spacer -->
+            <div class="flex-1 min-h-[1rem]"></div>
 
             <!-- Action buttons -->
-            <div class="flex items-center gap-2 mt-auto">
-              <a
-                :href="article.link"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="flex-1 text-center py-1.5 px-3 rounded-md text-xs font-medium
-                       border border-gray-300 dark:border-gray-700
-                       text-gray-600 dark:text-gray-400
-                       hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-              >
-                Read on SCMP ↗
+            <div class="flex gap-2 mt-4">
+              <a :href="article.link" target="_blank" rel="noopener noreferrer"
+                 class="flex-1 text-center py-2 px-3 rounded-lg text-xs font-semibold
+                        border border-gray-200 dark:border-gray-700
+                        text-gray-600 dark:text-gray-400
+                        hover:bg-gray-50 dark:hover:bg-gray-800
+                        transition-colors active:scale-95">
+                Read ↗
               </a>
               <button
                 @click="fetchAnalysis()"
-                class="analysis-btn flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-md text-xs font-medium
-                       bg-red-50 dark:bg-red-900/20
+                class="analysis-btn flex-1 flex items-center justify-center gap-1.5
+                       py-2 px-3 rounded-lg text-xs font-semibold
+                       bg-gradient-to-r from-red-50 to-rose-50
+                       dark:from-red-950/40 dark:to-rose-950/40
                        text-red-700 dark:text-red-400
-                       border border-red-200 dark:border-red-800
-                       hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+                       border border-red-200 dark:border-red-900
+                       hover:from-red-100 hover:to-rose-100
+                       dark:hover:from-red-900/50 dark:hover:to-rose-900/50
+                       transition-all active:scale-95"
               >
                 <span x-show="!loadingAnalysis">🔍 Deep Analysis</span>
                 <span x-show="loadingAnalysis" class="flex items-center gap-1.5">
-                  <span class="spinner"></span> Analysing…
+                  <span class="spinner" style="width:12px;height:12px"></span>
+                  Analysing…
                 </span>
               </button>
             </div>
-          </div><!-- /card body -->
+          </div>
 
           <!-- ── Analysis Panel ── -->
           <div
             x-show="showAnalysis"
-            x-transition:enter="transition ease-out duration-200"
-            x-transition:enter-start="opacity-0 -translate-y-1"
+            x-transition:enter="transition ease-out duration-250"
+            x-transition:enter-start="opacity-0 -translate-y-2"
             x-transition:enter-end="opacity-100 translate-y-0"
             class="border-t border-gray-100 dark:border-gray-800"
           >
-            <!-- Loading state -->
-            <div x-show="loadingAnalysis" class="p-5 flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
-              <span class="spinner"></span>
-              Claude is analysing…
+            <!-- Loading -->
+            <div x-show="loadingAnalysis"
+                 class="p-5 flex items-center gap-3 text-sm text-gray-400 dark:text-gray-500">
+              <span class="spinner"></span> Claude is analysing this article…
             </div>
 
-            <!-- Error state -->
+            <!-- Error -->
             <div x-show="!loadingAnalysis && analysis && analysis.error"
-                 class="p-4 text-sm text-red-600 dark:text-red-400"
-                 x-text="analysis && analysis.error">
-            </div>
+                 class="p-4 text-xs text-red-500 dark:text-red-400"
+                 x-text="analysis && analysis.error"></div>
 
-            <!-- Analysis content -->
+            <!-- Content -->
             <div x-show="!loadingAnalysis && analysis && !analysis.error"
                  class="p-5 space-y-4 analysis-enter">
 
               <!-- TL;DR -->
-              <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-3">
-                <p class="text-xs font-semibold text-red-700 dark:text-red-400 mb-1">⚡ TL;DR</p>
-                <p class="text-sm font-medium text-gray-800 dark:text-gray-200"
+              <div class="bg-gradient-to-r from-red-50 to-rose-50 dark:from-red-900/20 dark:to-rose-900/20
+                          rounded-xl p-3.5 border border-red-100 dark:border-red-900/50">
+                <p class="text-[10px] font-bold text-red-500 dark:text-red-400 uppercase tracking-widest mb-1.5">⚡ TL;DR</p>
+                <p class="text-sm font-semibold text-gray-800 dark:text-gray-200 leading-snug"
                    x-text="analysis && analysis.tldr"></p>
               </div>
 
               <!-- Key Points -->
               <div>
-                <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">📌 Key Points</p>
-                <ul class="space-y-1.5">
-                  <template x-for="(point, i) in (analysis && analysis.key_points || [])" :key="i">
-                    <li class="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
-                      <span class="text-red-500 mt-0.5 shrink-0">•</span>
-                      <span x-text="point"></span>
+                <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2.5">📌 Key Points</p>
+                <ul class="space-y-2">
+                  <template x-for="(pt, i) in (analysis && analysis.key_points || [])" :key="i">
+                    <li class="flex gap-2.5 text-xs text-gray-700 dark:text-gray-300">
+                      <span class="text-red-400 font-bold mt-0.5 shrink-0">→</span>
+                      <span x-text="pt"></span>
                     </li>
                   </template>
                 </ul>
               </div>
 
-              <!-- Grid: Why It Matters + India Impact -->
+              <!-- 2-col grid -->
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
-                  <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">🌍 Why It Matters</p>
+                <div class="bg-blue-50/60 dark:bg-blue-900/15 rounded-xl p-3 border border-blue-100 dark:border-blue-900/40">
+                  <p class="text-[10px] font-bold text-blue-500 dark:text-blue-400 uppercase tracking-widest mb-1.5">🌍 Why It Matters</p>
                   <p class="text-xs text-gray-600 dark:text-gray-400 leading-relaxed"
                      x-text="analysis && analysis.why_it_matters"></p>
                 </div>
-                <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
-                  <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">🇮🇳 India & Asia Impact</p>
+                <div class="bg-orange-50/60 dark:bg-orange-900/15 rounded-xl p-3 border border-orange-100 dark:border-orange-900/40">
+                  <p class="text-[10px] font-bold text-orange-500 dark:text-orange-400 uppercase tracking-widest mb-1.5">🇮🇳 India & Asia</p>
                   <p class="text-xs text-gray-600 dark:text-gray-400 leading-relaxed"
                      x-text="analysis && analysis.india_asia_impact"></p>
                 </div>
               </div>
 
-              <!-- Geopolitical Angle -->
-              <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
-                <p class="text-xs font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wider mb-1.5">🔮 Geopolitical Angle</p>
+              <!-- Geopolitical -->
+              <div class="bg-violet-50/60 dark:bg-violet-900/15 rounded-xl p-3 border border-violet-100 dark:border-violet-900/40">
+                <p class="text-[10px] font-bold text-violet-500 dark:text-violet-400 uppercase tracking-widest mb-1.5">🔮 Geopolitical Angle</p>
                 <p class="text-xs text-gray-600 dark:text-gray-400 leading-relaxed"
                    x-text="analysis && analysis.geopolitical_angle"></p>
               </div>
 
-            </div><!-- /analysis content -->
-          </div><!-- /analysis panel -->
+            </div>
+          </div>
 
         </article>
       </template>
@@ -286,31 +332,28 @@
 
     <!-- Empty state -->
     <div x-show="!loading && filteredArticles.length === 0"
-         class="text-center py-24 text-gray-400 dark:text-gray-600">
-      <p class="text-4xl mb-4">📰</p>
-      <p class="text-lg font-medium">No articles found</p>
-      <p class="text-sm mt-1">Try refreshing or check your network connection.</p>
+         class="flex flex-col items-center justify-center py-32 text-center">
+      <div class="text-6xl mb-5 animate-bounce">📰</div>
+      <p class="text-lg font-semibold text-gray-700 dark:text-gray-300">No articles found</p>
+      <p class="text-sm text-gray-400 mt-1 mb-6">RSS feeds blocked or network issue. Try refreshing.</p>
       <button @click="refreshArticles()"
-              class="mt-4 px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors">
-        Refresh now
+              class="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold
+                     transition-all active:scale-95 shadow-lg shadow-red-600/20">
+        ↻ Refresh Now
       </button>
     </div>
 
     <!-- Footer -->
-    <footer class="mt-12 pb-6 text-center text-xs text-gray-400 dark:text-gray-600">
-      <p>Data: South China Morning Post · AI: Claude (Anthropic) · Built with FastAPI</p>
-      <p class="mt-1">
-        Total: <span x-text="filteredArticles.length"></span> articles shown
-        <span x-show="activeCategory !== 'All'"> in <span x-text="activeCategory"></span></span>
-      </p>
+    <footer class="mt-14 pb-8 text-center text-xs text-gray-300 dark:text-gray-700 space-y-1">
+      <p>South China Morning Post &nbsp;·&nbsp; AI analysis by Claude (Anthropic) &nbsp;·&nbsp; Built with FastAPI</p>
     </footer>
 
-  </main><!-- /main -->
+  </main>
 
 
-  <!-- ══════════════════════════════════════════
-       ALPINE.JS APP
-  ══════════════════════════════════════════ -->
+  <!-- ═══════════════════════════════════════════════
+       ALPINE APP
+  ═══════════════════════════════════════════════ -->
   <script>
     function scmpApp() {
       return {
@@ -320,17 +363,18 @@
         articles: {},
         activeCategory: 'All',
         lastUpdated: '',
+        showToast: false,
+        toastMsg: '',
 
         get categories() {
           return ['All', ...Object.keys(this.articles)];
         },
 
         get filteredArticles() {
-          const flat = (cat, arts) => arts.map(a => ({ ...a, category: cat }));
-          if (this.activeCategory === 'All') {
-            return Object.entries(this.articles).flatMap(([cat, arts]) => flat(cat, arts));
-          }
-          return flat(this.activeCategory, this.articles[this.activeCategory] || []);
+          const expand = (cat, arts) => arts.map(a => ({ ...a, category: cat }));
+          if (this.activeCategory === 'All')
+            return Object.entries(this.articles).flatMap(([c, a]) => expand(c, a));
+          return expand(this.activeCategory, this.articles[this.activeCategory] || []);
         },
 
         get today() {
@@ -340,20 +384,18 @@
         },
 
         async init() {
-          await this.loadArticles(false);
+          await this.loadArticles();
         },
 
-        async loadArticles(forceRefresh) {
+        async loadArticles() {
           this.loading = true;
           try {
-            const url = forceRefresh ? '/api/articles?refresh=true' : '/api/articles';
-            const r = await fetch(url);
-            if (!r.ok) throw new Error('Network error');
+            const r = await fetch('/api/articles');
+            if (!r.ok) throw new Error();
             this.articles = await r.json();
-            const now = new Date();
-            this.lastUpdated = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-          } catch (e) {
-            console.error('Failed to load articles:', e);
+            this.lastUpdated = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+          } catch {
+            this.articles = {};
           }
           this.loading = false;
         },
@@ -362,29 +404,63 @@
           this.refreshing = true;
           try {
             await fetch('/api/refresh', { method: 'POST' });
-            await this.loadArticles(false);
-          } catch(e) {
-            console.error('Refresh failed:', e);
+            await this.loadArticles();
+            const total = this.filteredArticles.length;
+            this.fireToast(`✅ Updated! ${total} articles loaded`);
+          } catch {
+            this.fireToast('⚠️ Refresh failed — check your network');
           }
           this.refreshing = false;
         },
 
         toggleDark() {
           this.dark = !this.dark;
+          document.documentElement.classList.toggle('dark', this.dark);
           localStorage.setItem('scmp_dark', this.dark);
         },
 
+        fireToast(msg) {
+          this.toastMsg = msg;
+          this.showToast = true;
+          setTimeout(() => this.showToast = false, 3000);
+        },
+
+        trimText(text, len) {
+          if (!text) return '';
+          return text.length > len ? text.slice(0, len) + '…' : text;
+        },
+
+        formatDate(pub) {
+          if (!pub) return '';
+          // Return just the time part if today, else short date
+          const parts = pub.split(',');
+          return parts.length > 1 ? parts[1].trim() : pub.slice(0, 12);
+        },
+
         categoryBadge(cat) {
-          const map = {
-            'Top Stories': 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
-            'Hong Kong':   'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
-            'China':       'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300',
-            'Asia':        'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
-            'World':       'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
-            'Business':    'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
-            'Technology':  'bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300',
+          const m = {
+            'Top Stories': 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+            'Hong Kong':   'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+            'China':       'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
+            'Asia':        'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
+            'World':       'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
+            'Business':    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+            'Technology':  'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
           };
-          return map[cat] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+          return m[cat] || 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400';
+        },
+
+        categoryStripe(cat) {
+          const m = {
+            'Top Stories': 'bg-red-500',
+            'Hong Kong':   'bg-amber-400',
+            'China':       'bg-rose-500',
+            'Asia':        'bg-orange-400',
+            'World':       'bg-sky-500',
+            'Business':    'bg-emerald-500',
+            'Technology':  'bg-violet-500',
+          };
+          return m[cat] || 'bg-gray-400';
         }
       };
     }

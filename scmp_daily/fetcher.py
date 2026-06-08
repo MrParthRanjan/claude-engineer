@@ -24,6 +24,7 @@ class Article:
     published: str
     full_text: Optional[str] = None
     ai_summary: Optional[str] = None
+    crux: Optional[str] = None
 
     def to_dict(self) -> dict:
         return asdict(self)

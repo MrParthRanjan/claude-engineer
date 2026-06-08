@@ -1,47 +1,18 @@
-# ============================================
-# PYTHON DEPENDENCIES WITH VERSIONS
-# ============================================
-# 
-# Why versions?
-# - Security: Known vulnerabilities patched
-# - Stability: No breaking changes
-# - Reproducibility: Same setup everywhere
-#
-# Update: pip install --upgrade package_name
-#
-# ============================================
+# ── Web Server ────────────────────────────────────
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+jinja2==3.1.4
+python-multipart==0.0.9
 
-# Web Server (SCMP Daily Website)
-fastapi==0.115.0              # Web framework
-uvicorn[standard]==0.30.6     # ASGI server
-jinja2==3.1.4                 # HTML templating
-python-multipart==0.0.9       # Form data parsing
+# ── Core ──────────────────────────────────────────
+python-dotenv==1.0.1
+requests==2.31.0
+beautifulsoup4==4.12.3
+lxml==5.3.0
 
-# Core Python Packages
-python-dotenv==1.0.0          # Load .env files
-requests==2.31.0              # HTTP library
-beautifulsoup4==4.12.3        # HTML article scraping (SCMP Daily)
-lxml==5.2.1                   # Fast HTML/XML parser (SCMP Daily)
+# ── AI ────────────────────────────────────────────
+anthropic>=0.25.0
 
-# API & AI
-anthropic==0.25.0             # Anthropic Claude API
-tavily-python==0.3.0          # Tavily Search API
-
-# Data Processing
-pandas==2.1.0                 # Data manipulation
-numpy==1.24.0                 # Numerical computing
-
-# Utilities
-rich==13.7.0                  # Beautiful terminal output
-colorama==0.4.6               # Colored terminal text
-pydantic==2.4.0               # Data validation
-
-# Development (Optional)
-pytest==7.4.0                 # Testing framework
-black==23.11.0                # Code formatter
-pylint==3.0.0                 # Code linter
-flake8==6.1.0                 # Style checker
-
-# Logging & Monitoring
-loguru==0.7.2                 # Better logging
-
+# ── Terminal / Logging ────────────────────────────
+rich>=13.7.0
+loguru>=0.7.2

@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en" x-data="scmpApp()" :class="{ 'dark': dark }" x-cloak>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SCMP Daily Intelligence</title>
+  <link rel="stylesheet" href="/static/style.css" />
+
+  <!-- Tailwind CSS Play CDN -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { DEFAULT: '#cc0000', dark: '#ef4444' }
+          }
+        }
+      }
+    }
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Alpine.js -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+
+<body class="bg-gray-50 dark:bg-[#0a0a0f] min-h-screen">
+
+  <!-- ══════════════════════════════════════════
+       HEADER
+  ══════════════════════════════════════════ -->
+  <header class="bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 py-3">
+      <div class="flex items-center justify-between gap-4">
+
+        <!-- Branding -->
+        <div class="min-w-0">
+          <h1 class="font-headline text-xl sm:text-2xl lg:text-3xl font-black tracking-wide text-gray-900 dark:text-white leading-tight">
+            SOUTH CHINA MORNING POST
+          </h1>
+          <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5 hidden sm:block">
+            Daily Intelligence Dashboard &mdash;
+            <span x-text="today"></span>
+          </p>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex items-center gap-2 shrink-0">
+
+          <!-- Last updated -->
+          <span x-show="lastUpdated" class="text-xs text-gray-400 dark:text-gray-500 hidden md:inline">
+            Updated <span x-text="lastUpdated"></span>
+          </span>
+
+          <!-- Refresh button -->
+          <button
+            @click="refreshArticles()"
+            :disabled="loading || refreshing"
+            class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md
+                   border border-gray-300 dark:border-gray-700
+                   text-gray-700 dark:text-gray-300
+                   hover:bg-gray-100 dark:hover:bg-gray-800
+                   disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            title="Fetch latest articles"
+          >
+            <span x-show="!refreshing">↻</span>
+            <span x-show="refreshing" class="spinner text-gray-500"></span>
+            <span class="hidden sm:inline" x-text="refreshing ? 'Refreshing…' : 'Refresh'"></span>
+          </button>
+
+          <!-- Dark / Light toggle -->
+          <button
+            @click="toggleDark()"
+            class="w-9 h-9 flex items-center justify-center rounded-md
+                   border border-gray-300 dark:border-gray-700
+                   text-gray-600 dark:text-gray-300
+                   hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            :title="dark ? 'Switch to light mode' : 'Switch to dark mode'"
+          >
+            <span x-show="!dark" class="text-base">☀️</span>
+            <span x-show="dark"  class="text-base">🌙</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Category Nav -->
+    <nav class="border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-950">
+      <div class="max-w-7xl mx-auto px-4">
+        <div class="category-bar flex gap-1 py-2 overflow-x-auto">
+          <template x-for="cat in categories" :key="cat">
+            <button
+              @click="activeCategory = cat"
+              :class="activeCategory === cat
+                ? 'bg-red-600 text-white'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800'"
+              class="px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors"
+              x-text="cat"
+            ></button>
+          </template>
+        </div>
+      </div>
+    </nav>
+  </header>
+
+  <!-- ══════════════════════════════════════════
+       LOADING SKELETON
+  ══════════════════════════════════════════ -->
+  <main class="max-w-7xl mx-auto px-4 py-6">
+    <div x-show="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <template x-for="i in 9" :key="i">
+        <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-3">
+          <div class="skeleton h-4 w-20 rounded"></div>
+          <div class="skeleton h-5 w-full rounded"></div>
+          <div class="skeleton h-5 w-4/5 rounded"></div>
+          <div class="skeleton h-4 w-full rounded"></div>
+          <div class="skeleton h-4 w-3/4 rounded"></div>
+          <div class="flex gap-2 mt-4">
+            <div class="skeleton h-8 w-28 rounded-md"></div>
+            <div class="skeleton h-8 w-32 rounded-md"></div>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         ARTICLES GRID
+    ══════════════════════════════════════════ -->
+    <div x-show="!loading && filteredArticles.length > 0"
+         class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <template x-for="(article, idx) in filteredArticles" :key="article.title + idx">
+        <article
+          class="article-card bg-white dark:bg-gray-900 rounded-xl
+                 border border-gray-200 dark:border-gray-800
+                 shadow-sm hover:shadow-md transition-shadow
+                 flex flex-col"
+          x-data="{
+            showAnalysis: false,
+            analysis: null,
+            loadingAnalysis: false,
+            async fetchAnalysis() {
+              if (this.analysis) { this.showAnalysis = !this.showAnalysis; return; }
+              this.showAnalysis = true;
+              this.loadingAnalysis = true;
+              const p = new URLSearchParams({
+                title: article.title,
+                description: article.ai_summary || article.description || '',
+                category: article.category || ''
+              });
+              try {
+                const r = await fetch('/api/analysis?' + p);
+                this.analysis = await r.json();
+              } catch(e) {
+                this.analysis = { error: 'Analysis failed. Check your API key.' };
+              }
+              this.loadingAnalysis = false;
+            }
+          }"
+        >
+          <!-- Card body -->
+          <div class="p-5 flex flex-col flex-1">
+
+            <!-- Category badge + date row -->
+            <div class="flex items-center justify-between mb-3 gap-2">
+              <span
+                class="px-2 py-0.5 rounded-full text-xs font-semibold"
+                :class="categoryBadge(article.category)"
+                x-text="article.category"
+              ></span>
+              <span class="text-xs text-gray-400 dark:text-gray-500 shrink-0"
+                    x-text="article.published ? article.published.split(',')[0] : ''">
+              </span>
+            </div>
+
+            <!-- Headline -->
+            <h2 class="font-headline text-gray-900 dark:text-gray-100 font-bold text-base leading-snug mb-2 flex-1"
+                x-text="article.title">
+            </h2>
+
+            <!-- Summary / Description -->
+            <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed mb-4"
+               x-text="(article.ai_summary || article.description || '').substring(0, 220) + ((article.ai_summary || article.description || '').length > 220 ? '…' : '')">
+            </p>
+
+            <!-- Action buttons -->
+            <div class="flex items-center gap-2 mt-auto">
+              <a
+                :href="article.link"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex-1 text-center py-1.5 px-3 rounded-md text-xs font-medium
+                       border border-gray-300 dark:border-gray-700
+                       text-gray-600 dark:text-gray-400
+                       hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                Read on SCMP ↗
+              </a>
+              <button
+                @click="fetchAnalysis()"
+                class="analysis-btn flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-md text-xs font-medium
+                       bg-red-50 dark:bg-red-900/20
+                       text-red-700 dark:text-red-400
+                       border border-red-200 dark:border-red-800
+                       hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+              >
+                <span x-show="!loadingAnalysis">🔍 Deep Analysis</span>
+                <span x-show="loadingAnalysis" class="flex items-center gap-1.5">
+                  <span class="spinner"></span> Analysing…
+                </span>
+              </button>
+            </div>
+          </div><!-- /card body -->
+
+          <!-- ── Analysis Panel ── -->
+          <div
+            x-show="showAnalysis"
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0 -translate-y-1"
+            x-transition:enter-end="opacity-100 translate-y-0"
+            class="border-t border-gray-100 dark:border-gray-800"
+          >
+            <!-- Loading state -->
+            <div x-show="loadingAnalysis" class="p-5 flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+              <span class="spinner"></span>
+              Claude is analysing…
+            </div>
+
+            <!-- Error state -->
+            <div x-show="!loadingAnalysis && analysis && analysis.error"
+                 class="p-4 text-sm text-red-600 dark:text-red-400"
+                 x-text="analysis && analysis.error">
+            </div>
+
+            <!-- Analysis content -->
+            <div x-show="!loadingAnalysis && analysis && !analysis.error"
+                 class="p-5 space-y-4 analysis-enter">
+
+              <!-- TL;DR -->
+              <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-3">
+                <p class="text-xs font-semibold text-red-700 dark:text-red-400 mb-1">⚡ TL;DR</p>
+                <p class="text-sm font-medium text-gray-800 dark:text-gray-200"
+                   x-text="analysis && analysis.tldr"></p>
+              </div>
+
+              <!-- Key Points -->
+              <div>
+                <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">📌 Key Points</p>
+                <ul class="space-y-1.5">
+                  <template x-for="(point, i) in (analysis && analysis.key_points || [])" :key="i">
+                    <li class="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                      <span class="text-red-500 mt-0.5 shrink-0">•</span>
+                      <span x-text="point"></span>
+                    </li>
+                  </template>
+                </ul>
+              </div>
+
+              <!-- Grid: Why It Matters + India Impact -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                  <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">🌍 Why It Matters</p>
+                  <p class="text-xs text-gray-600 dark:text-gray-400 leading-relaxed"
+                     x-text="analysis && analysis.why_it_matters"></p>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                  <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">🇮🇳 India & Asia Impact</p>
+                  <p class="text-xs text-gray-600 dark:text-gray-400 leading-relaxed"
+                     x-text="analysis && analysis.india_asia_impact"></p>
+                </div>
+              </div>
+
+              <!-- Geopolitical Angle -->
+              <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
+                <p class="text-xs font-semibold text-blue-700 dark:text-blue-400 uppercase tracking-wider mb-1.5">🔮 Geopolitical Angle</p>
+                <p class="text-xs text-gray-600 dark:text-gray-400 leading-relaxed"
+                   x-text="analysis && analysis.geopolitical_angle"></p>
+              </div>
+
+            </div><!-- /analysis content -->
+          </div><!-- /analysis panel -->
+
+        </article>
+      </template>
+    </div>
+
+    <!-- Empty state -->
+    <div x-show="!loading && filteredArticles.length === 0"
+         class="text-center py-24 text-gray-400 dark:text-gray-600">
+      <p class="text-4xl mb-4">📰</p>
+      <p class="text-lg font-medium">No articles found</p>
+      <p class="text-sm mt-1">Try refreshing or check your network connection.</p>
+      <button @click="refreshArticles()"
+              class="mt-4 px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors">
+        Refresh now
+      </button>
+    </div>
+
+    <!-- Footer -->
+    <footer class="mt-12 pb-6 text-center text-xs text-gray-400 dark:text-gray-600">
+      <p>Data: South China Morning Post · AI: Claude (Anthropic) · Built with FastAPI</p>
+      <p class="mt-1">
+        Total: <span x-text="filteredArticles.length"></span> articles shown
+        <span x-show="activeCategory !== 'All'"> in <span x-text="activeCategory"></span></span>
+      </p>
+    </footer>
+
+  </main><!-- /main -->
+
+
+  <!-- ══════════════════════════════════════════
+       ALPINE.JS APP
+  ══════════════════════════════════════════ -->
+  <script>
+    function scmpApp() {
+      return {
+        dark: localStorage.getItem('scmp_dark') === 'true',
+        loading: true,
+        refreshing: false,
+        articles: {},
+        activeCategory: 'All',
+        lastUpdated: '',
+
+        get categories() {
+          return ['All', ...Object.keys(this.articles)];
+        },
+
+        get filteredArticles() {
+          const flat = (cat, arts) => arts.map(a => ({ ...a, category: cat }));
+          if (this.activeCategory === 'All') {
+            return Object.entries(this.articles).flatMap(([cat, arts]) => flat(cat, arts));
+          }
+          return flat(this.activeCategory, this.articles[this.activeCategory] || []);
+        },
+
+        get today() {
+          return new Date().toLocaleDateString('en-GB', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+          });
+        },
+
+        async init() {
+          await this.loadArticles(false);
+        },
+
+        async loadArticles(forceRefresh) {
+          this.loading = true;
+          try {
+            const url = forceRefresh ? '/api/articles?refresh=true' : '/api/articles';
+            const r = await fetch(url);
+            if (!r.ok) throw new Error('Network error');
+            this.articles = await r.json();
+            const now = new Date();
+            this.lastUpdated = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+          } catch (e) {
+            console.error('Failed to load articles:', e);
+          }
+          this.loading = false;
+        },
+
+        async refreshArticles() {
+          this.refreshing = true;
+          try {
+            await fetch('/api/refresh', { method: 'POST' });
+            await this.loadArticles(false);
+          } catch(e) {
+            console.error('Refresh failed:', e);
+          }
+          this.refreshing = false;
+        },
+
+        toggleDark() {
+          this.dark = !this.dark;
+          localStorage.setItem('scmp_dark', this.dark);
+        },
+
+        categoryBadge(cat) {
+          const map = {
+            'Top Stories': 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
+            'Hong Kong':   'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+            'China':       'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300',
+            'Asia':        'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
+            'World':       'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
+            'Business':    'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
+            'Technology':  'bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300',
+          };
+          return map[cat] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+        }
+      };
+    }
+  </script>
+
+</body>
+</html>

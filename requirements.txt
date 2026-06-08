@@ -11,6 +11,12 @@
 #
 # ============================================
 
+# Web Server (SCMP Daily Website)
+fastapi==0.115.0              # Web framework
+uvicorn[standard]==0.30.6     # ASGI server
+jinja2==3.1.4                 # HTML templating
+python-multipart==0.0.9       # Form data parsing
+
 # Core Python Packages
 python-dotenv==1.0.0          # Load .env files
 requests==2.31.0              # HTTP library

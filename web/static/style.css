@@ -1,0 +1,88 @@
+/* SCMP Daily — custom styles on top of Tailwind */
+
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600&display=swap');
+
+:root {
+  --brand: #cc0000;
+  --brand-light: #ef4444;
+}
+
+[x-cloak] { display: none !important; }
+
+body {
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-headline {
+  font-family: 'Playfair Display', ui-serif, Georgia, serif;
+}
+
+/* Smooth dark/light transition */
+*, *::before, *::after {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease;
+}
+
+/* Analysis panel slide-down */
+.analysis-enter {
+  animation: slideDown 0.3s ease forwards;
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+  background-size: 400px 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 4px;
+}
+.dark .skeleton {
+  background: linear-gradient(90deg, #1f2937 25%, #374151 50%, #1f2937 75%);
+  background-size: 400px 100%;
+}
+
+/* Scroll-smooth category bar */
+.category-bar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.category-bar::-webkit-scrollbar { display: none; }
+
+/* Red left border on card hover */
+.article-card {
+  border-left: 3px solid transparent;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.article-card:hover {
+  border-left-color: var(--brand);
+}
+.dark .article-card:hover {
+  border-left-color: var(--brand-light);
+}
+
+/* Spinner */
+.spinner {
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  width: 1em;
+  height: 1em;
+  animation: spin 0.6s linear infinite;
+  display: inline-block;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Print: hide controls, show full content */
+@media print {
+  nav, header button, .analysis-btn { display: none !important; }
+  .analysis-panel { display: block !important; }
+}

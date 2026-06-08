@@ -166,8 +166,9 @@ docker-compose.override.yml
 # SCMP DAILY READER
 # ============================================
 
-# Daily cache file — regenerated automatically each day
+# Daily cache files — regenerated automatically
 .scmp_cache.json
+.scmp_analysis_cache.json
 
 # ============================================
 # MISC

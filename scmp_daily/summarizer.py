@@ -1,6 +1,7 @@
 """SCMP Daily Reader — Claude AI Summarizer"""
 
 import os
+import time
 from typing import Dict, List, Optional
 
 import anthropic
@@ -30,73 +31,106 @@ def _build_prompt(articles: List[Article], category: str) -> str:
     return "\n".join(lines)
 
 
+def _parse_response(raw: str, articles: List[Article]) -> List[Article]:
+    summaries: Dict[int, str] = {}
+    cruxes: Dict[int, str] = {}
+    current_idx: Optional[int] = None
+    current_lines: List[str] = []
+
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if line.startswith("[") and "]" in line[:4]:
+            if current_idx is not None:
+                summaries[current_idx] = " ".join(current_lines).strip()
+            bracket_end = line.index("]")
+            try:
+                current_idx = int(line[1:bracket_end])
+            except ValueError:
+                current_idx = None
+                current_lines = []
+                continue
+            rest = line[bracket_end + 1:].lstrip(". ").strip()
+            current_lines = [rest] if rest else []
+        elif line.startswith(">") and current_idx is not None:
+            cruxes[current_idx] = line[1:].strip()
+        else:
+            if current_idx is not None:
+                current_lines.append(line)
+
+    if current_idx is not None:
+        summaries[current_idx] = " ".join(current_lines).strip()
+
+    for i, article in enumerate(articles, 1):
+        if i in summaries:
+            article.ai_summary = summaries[i]
+        if i in cruxes:
+            article.crux = cruxes[i]
+
+    return articles
+
+
 def summarize_category(articles: List[Article], category: str) -> List[Article]:
-    """Add AI summaries and crux to a list of articles in one API call."""
+    """Add AI summaries and crux to a list of articles in one API call.
+
+    Errors:
+    - AuthenticationError (401): logged as ERROR, not retried — key is wrong.
+    - RateLimitError / InternalServerError: retried up to 3× with backoff.
+    - Other API errors: logged as WARNING, no retry.
+    """
     if not articles:
         return articles
 
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
-        logger.warning("ANTHROPIC_API_KEY not set — skipping AI summaries.")
+        logger.warning(f"[{category}] ANTHROPIC_API_KEY not set — skipping AI summaries")
         return articles
 
     client = anthropic.Anthropic(api_key=api_key)
     prompt = _build_prompt(articles, category)
+    max_attempts = 3
 
-    try:
-        message = client.messages.create(
-            model=CONFIG.claude_model,
-            max_tokens=1200,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        raw = message.content[0].text.strip()
+    for attempt in range(1, max_attempts + 1):
+        try:
+            message = client.messages.create(
+                model=CONFIG.claude_model,
+                max_tokens=1200,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            raw = message.content[0].text.strip()
+            return _parse_response(raw, articles)
 
-        summaries: Dict[int, str] = {}
-        cruxes: Dict[int, str] = {}
-        current_idx: Optional[int] = None
-        current_lines: List[str] = []
+        except anthropic.AuthenticationError as exc:
+            # 401 — key is definitively wrong; retrying won't help
+            logger.error(
+                f"[{category}] Anthropic 401 — INVALID API KEY. "
+                f"Check ANTHROPIC_API_KEY in your .env file. ({exc})"
+            )
+            return articles  # return without summaries; don't retry
 
-        for line in raw.splitlines():
-            line = line.strip()
-            if not line:
-                continue
+        except (anthropic.RateLimitError, anthropic.InternalServerError) as exc:
+            # Transient — backoff and retry
+            if attempt == max_attempts:
+                logger.warning(f"[{category}] Transient error after {max_attempts} attempts: {exc}")
+                return articles
+            wait = 2 ** (attempt - 1)  # 1s, 2s
+            logger.warning(
+                f"[{category}] Transient error (attempt {attempt}/{max_attempts}), "
+                f"retrying in {wait}s: {exc}"
+            )
+            time.sleep(wait)
 
-            if line.startswith("[") and "]" in line[:4]:
-                # Save previous article's summary
-                if current_idx is not None:
-                    summaries[current_idx] = " ".join(current_lines).strip()
-                bracket_end = line.index("]")
-                try:
-                    current_idx = int(line[1:bracket_end])
-                except ValueError:
-                    current_idx = None
-                    current_lines = []
-                    continue
-                rest = line[bracket_end + 1:].lstrip(". ").strip()
-                current_lines = [rest] if rest else []
+        except anthropic.APIStatusError as exc:
+            # Other 4xx / 5xx — log and bail
+            logger.warning(f"[{category}] API error {exc.status_code}: {exc.message}")
+            return articles
 
-            elif line.startswith(">") and current_idx is not None:
-                # Crux line for the current article
-                cruxes[current_idx] = line[1:].strip()
+        except Exception as exc:
+            logger.warning(f"[{category}] Unexpected summarizer error: {exc}")
+            return articles
 
-            else:
-                if current_idx is not None:
-                    current_lines.append(line)
-
-        # Flush last article
-        if current_idx is not None:
-            summaries[current_idx] = " ".join(current_lines).strip()
-
-        for i, article in enumerate(articles, 1):
-            if i in summaries:
-                article.ai_summary = summaries[i]
-            if i in cruxes:
-                article.crux = cruxes[i]
-
-    except Exception as exc:
-        logger.warning(f"AI summary failed for {category}: {exc}")
-
-    return articles
+    return articles  # unreachable but satisfies type checker
 
 
 def summarize_all(data: Dict[str, List[Article]]) -> Dict[str, List[Article]]:

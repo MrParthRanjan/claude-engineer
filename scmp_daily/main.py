@@ -12,6 +12,7 @@ Usage:
 import argparse
 import os
 import sys
+from pathlib import Path
 
 from dotenv import load_dotenv
 from loguru import logger
@@ -22,7 +23,9 @@ logger.add(sys.stderr, level="WARNING")
 
 
 def main() -> None:
-    load_dotenv()
+    # Resolve .env relative to this file's project root — never trust CWD
+    _env = Path(__file__).parent.parent / ".env"
+    load_dotenv(_env, override=True)
 
     parser = argparse.ArgumentParser(description="SCMP Daily Digest in your terminal")
     parser.add_argument("--refresh", action="store_true", help="Bypass cache and re-fetch all feeds")
